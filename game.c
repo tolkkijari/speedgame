@@ -16,7 +16,7 @@
 
 volatile uint8_t last_clicked_btn = 5;
 volatile uint8_t is_clicked = 0;
-//max ~650 seconds
+//Max ~650 seconds until the counter flips over.
 volatile unsigned int ten_ms_counter = 0;
 volatile uint8_t ms_counter = 0;
 
@@ -67,28 +67,41 @@ static inline void init_timer(void) {
 //TODO: onko tarpeen lisätä interruptien keskeytys käsittelyn ajaksi?
 int main(void) {
 
-  DDRB |= 0x0f;
+  DDRC |= 0x0f;
 	init_timer();
   init_button_interrupt();
   sei();
-
-  uint8_t game_on = 1;
 
   while(1) {
 		unsigned int led_start_time = 0;
 		unsigned int last_speed_up_time = 0;
 		float current_delay = INITIAL_DELAY;
-		is_clicked = 0;
 		int is_led_on = 0;
 		unsigned int score = 0;
 		uint8_t last_selected_led = 5;
+  	uint8_t game_on = 0;
+
+		last_clicked_btn = 5;
 		ten_ms_counter = 0;
-		
+		is_clicked = 0;
+
 		// "The splash screen"
-		PORTB = 0x0f;
+		PORTC = 0x0f;
+
+		//Seed the random generator, the game starts after clicking a button.
+		while(!game_on) {
+			//TODO: joskus nappi pysyy liian pitkää pohjassa ja aiheuttaa pulmia
+			if(last_clicked_btn != 5) {
+				srand(ten_ms_counter + ms_counter);
+				last_clicked_btn = 5;
+				is_clicked = 0;
+				game_on = 1;
+			}
+		}
+		
+		PORTC = 0x00;
 		_delay_ms(1000);
-		PORTB = 0x00;
-		_delay_ms(1000);
+		ten_ms_counter = 0;
 
 		while (game_on) {
 			if(!is_led_on) {
@@ -111,7 +124,7 @@ int main(void) {
 				is_led_on = 1;
 				//selected_led is between 0-3, and the led pins are between 1, 2, 4, and 8 in binary.
 				//A small binary transfer fixes the difference.
-				PORTB = 1 << selected_led;
+				PORTC = 1 << selected_led;
 			}
 
 			//Speed up the led switching after every elapsed second.
@@ -135,17 +148,17 @@ int main(void) {
 				else {
 					game_on = 0;
 					//A temporary way to show the scores as binary.
-					PORTB = 0x00;
-					_delay_ms(2000);
-					PORTB = 0xff;
-					_delay_ms(500);
-					PORTB = score >> 4;
-					_delay_ms(4000);
-					PORTB = 0x00;
-					_delay_ms(500);
-					PORTB = score;
-					_delay_ms(4000);
-					PORTB = 0;
+					// PORTC = 0x00;
+					// _delay_ms(2000);
+					// PORTC = 0xff;
+					// _delay_ms(500);
+					// PORTC = score >> 4;
+					// _delay_ms(4000);
+					// PORTC = 0x00;
+					// _delay_ms(500);
+					// PORTC = score;
+					// _delay_ms(4000);
+					// PORTC = 0;
 				}
 			}
 		}
@@ -155,16 +168,7 @@ int main(void) {
 		last_clicked_btn = 5;
 		is_clicked = 0;
 
-		PORTB = 0;
-
-		while(!game_on) {
-			PORTB = 0x0f;
-			if(last_clicked_btn != 5) {
-				game_on = 1;
-			}
-		}
-		PORTB = 0x00;
-		_delay_ms(2000);
+		PORTC = 0;
 	}
 
   return 0;
